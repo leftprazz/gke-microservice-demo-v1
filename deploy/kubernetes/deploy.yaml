@@ -5,7 +5,6 @@ metadata:
   namespace: app
 data:
   WEB_VOTE_NUMBER: "01"
-  constraint:node: "=frontend01"
 ---
 apiVersion: v1
 kind: ConfigMap
