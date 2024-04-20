@@ -43,6 +43,8 @@ spec:
       labels:
         app: web-vote-app
     spec:
+      imagePullSecrets:
+        - name: lp-registry-secret
       containers:
         - name: web-vote-app
           image: asia-southeast2-docker.pkg.dev/leftprazz/lp-registry/web-vote-app:latest
@@ -67,6 +69,8 @@ spec:
       labels:
         app: vote-worker
     spec:
+      imagePullSecrets:
+        - name: lp-registry-secret
       containers:
         - name: vote-worker
           image: asia-southeast2-docker.pkg.dev/leftprazz/lp-registry/vote-worker:latest
@@ -89,6 +93,8 @@ spec:
       labels:
         app: results-app
     spec:
+      imagePullSecrets:
+        - name: lp-registry-secret
       containers:
         - name: results-app
           image: asia-southeast2-docker.pkg.dev/leftprazz/lp-registry/results-app:latest
