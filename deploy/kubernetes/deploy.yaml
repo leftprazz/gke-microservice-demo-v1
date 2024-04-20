@@ -234,3 +234,4 @@ spec:
               value: "postgres"
             - name: POSTGRES_PASSWORD
               value: "pg8675309"
+
