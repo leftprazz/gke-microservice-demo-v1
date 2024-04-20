@@ -1,24 +1,20 @@
-#
-# Compose file to run the voting app and dependent services
-#
-
 version: '2'
 
 services:
   web-vote-app:
-    build: web-vote-app
+    image: web-vote-app:latest
     environment:
       WEB_VOTE_NUMBER: "01"
       constraint:node: "=frontend01"
 
   vote-worker:
-    build: vote-worker
+    image: vote-worker:latest
     environment:
       FROM_REDIS_HOST: 1
       TO_REDIS_HOST: 1
 
   results-app:
-    build: results-app
+    image: results-app:latest
 
   redis01:
     image: redis:3
