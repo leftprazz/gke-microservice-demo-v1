@@ -1,0 +1,156 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-vote-app-config
+data:
+  WEB_VOTE_NUMBER: "01"
+  constraint:node: "=frontend01"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vote-worker-config
+data:
+  FROM_REDIS_HOST: "1"
+  TO_REDIS_HOST: "1"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-vote-app
+spec:
+  selector:
+    app: web-vote-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-vote-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-vote-app
+  template:
+    metadata:
+      labels:
+        app: web-vote-app
+    spec:
+      containers:
+        - name: web-vote-app
+          image: web-vote-app:latest
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: web-vote-app-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vote-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vote-worker
+  template:
+    metadata:
+      labels:
+        app: vote-worker
+    spec:
+      containers:
+        - name: vote-worker
+          image: vote-worker:latest
+          envFrom:
+            - configMapRef:
+                name: vote-worker-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: results-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: results-app
+  template:
+    metadata:
+      labels:
+        app: results-app
+    spec:
+      containers:
+        - name: results-app
+          image: results-app:latest
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis01
+spec:
+  selector:
+    app: redis01
+  ports:
+    - protocol: TCP
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: store
+spec:
+  selector:
+    app: store
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-vote-app-config
+data:
+  WEB_VOTE_NUMBER: "01"
+  constraint:node: "=frontend01"
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vote-worker-config
+data:
+  FROM_REDIS_HOST: "1"
+  TO_REDIS_HOST: "1"
+
+
+# Ingress for web-vote-app
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-vote-app-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: "/"
+    nginx.ingress.kubernetes.io/service-upstream: "true" 
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - "*.leftprazz.com"
+      secretName: leftprazz-cert
+  rules:
+    - host: k8s-test.leftprazz.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web-vote-app
+                port:
+                  number: 80
