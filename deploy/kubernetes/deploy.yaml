@@ -46,7 +46,7 @@ spec:
     spec:
       containers:
         - name: web-vote-app
-          image: web-vote-app:latest
+          image: asia-southeast2-docker.pkg.dev/leftprazz/lp-registry/web-vote-app:latest
           ports:
             - containerPort: 80
           envFrom:
@@ -70,7 +70,7 @@ spec:
     spec:
       containers:
         - name: vote-worker
-          image: vote-worker:latest
+          image: asia-southeast2-docker.pkg.dev/leftprazz/lp-registry/vote-worker:latest
           envFrom:
             - configMapRef:
                 name: vote-worker-config
@@ -92,7 +92,7 @@ spec:
     spec:
       containers:
         - name: results-app
-          image: results-app:latest
+          image: asia-southeast2-docker.pkg.dev/leftprazz/lp-registry/results-app:latest
 
 apiVersion: v1
 kind: Service
