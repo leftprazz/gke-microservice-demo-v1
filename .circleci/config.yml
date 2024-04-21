@@ -1,0 +1,97 @@
+version: 2.1
+orbs: 
+  slack: circleci/slack@3.4.2 
+jobs:
+  build:
+    machine:
+      image: ubuntu-2004:202111-02
+      docker_layer_caching: false
+    resource_class: medium
+    steps:
+      - checkout
+      - run:
+          name: Set deployment tag env
+          command: |
+            if [ "$CIRCLE_BRANCH" == "main" ]
+            then
+              echo "export APP_ENV=staging" >> APP_ENV
+            fi
+      - run:
+          name: Deployment image name env
+          command: |
+            echo 'export COMMIT_SHORT=$(echo $CIRCLE_SHA1 | cut -c1-7 )' >> COMMIT_SHORT
+            for img_env in RESULTS_IMG_ENV VOTE_IMG_ENV WEB_IMG_ENV; do
+                echo 'export COMMIT_SHORT=$(echo $CIRCLE_SHA1 | cut -c1-7 )' >> "$img_env"
+            done
+            echo 'export IMAGE_NAME_RESULTS=$LP_REGISTRY_PATH$CIRCLE_PROJECT_REPONAME-results:$CIRCLE_BRANCH-$COMMIT_SHORT' >> RESULTS_IMG_ENV
+            echo 'export IMAGE_NAME_VOTE=$LP_REGISTRY_PATH$CIRCLE_PROJECT_REPONAME-vote:$CIRCLE_BRANCH-$COMMIT_SHORT' >> VOTE_IMG_ENV
+            echo 'export IMAGE_NAME_WEB=$LP_REGISTRY_PATH$CIRCLE_PROJECT_REPONAME-web:$CIRCLE_BRANCH-$COMMIT_SHORT' >> WEB_IMG_ENV
+            echo -n $LP_REGISTRY_SA | base64 --decode > LP_REGISTRY_SA.json
+      - run:
+          name: Build docker image for every service
+          command: |
+            source APP_ENV
+            source COMMIT_SHORT
+            source RESULTS_IMG_ENV
+            source VOTE_IMG_ENV
+            source WEB_IMG_ENV
+
+            cd results-app/
+            docker build -f Dockerfile --build-arg APP_ENV=$APP_ENV -t $IMAGE_NAME_RESULTS .
+
+            cd ../vote-worker
+            docker build -f Dockerfile --build-arg APP_ENV=$APP_ENV -t $IMAGE_NAME_VOTE .
+
+            cd ../web-vote-app
+            docker build -f Dockerfile --build-arg APP_ENV=$APP_ENV -t $IMAGE_NAME_WEB .
+
+      - run: 
+          name: Docker push artifact registry
+          command: |
+            source RESULTS_IMG_ENV
+            source VOTE_IMG_ENV
+            source WEB_IMG_ENV
+            gcloud auth activate-service-account --key-file LP_REGISTRY_SA.json
+            cat LP_REGISTRY_SA.json | docker login -u _json_key --password-stdin https://asia-southeast2-docker.pkg.dev
+            gcloud auth configure-docker
+
+            docker push $IMAGE_NAME_RESULTS
+            docker push $IMAGE_NAME_VOTE
+            docker push $IMAGE_NAME_WEB
+
+      - run:
+          name: Activate service account for GKE
+          command: |
+            echo -n $GKE_PROJECT_SA | base64 --decode > GKE_PROJECT_SA.json
+            export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/GKE_PROJECT_SA.json
+            gcloud auth activate-service-account --key-file $(pwd)/GKE_PROJECT_SA.json
+
+      - run:
+          name: Update Kubernetes Deployment
+          command: |
+            source RESULTS_IMG_ENV
+            source VOTE_IMG_ENV
+            source WEB_IMG_ENV
+            gcloud components install kubectl
+            if [ "$CIRCLE_BRANCH" == "main" ]; then
+              gcloud container clusters get-credentials gke-Test-cluster --zone asia-southeast1-a --project leftprazz-sgp
+              kubectl set image deployment/results-app assets=$IMAGE_NAME_RESULTS -n app
+              kubectl set image deployment/vote-worker carts=$IMAGE_NAME_VOTE -n app
+              kubectl set image deployment/web-vote-app catalog=$IMAGE_NAME_WB -n app
+            fi
+
+      - run: exit 0
+      - slack/status: #ci-deployment
+          channel: $SLACK_CHANNEL
+          failure_message: "Hi $CIRCLE_USERNAME $CIRCLE_PR_USERNAME, Proses $CIRCLE_JOB $CIRCLE_PROJECT_REPONAME Branch $CIRCLE_BRANCH Gagal, Mohon untuk dicek kembali Workflow CInya, Thanks"
+          success_message: "Hi $CIRCLE_USERNAME $CIRCLE_PR_USERNAME, Proses $CIRCLE_JOB $CIRCLE_PROJECT_REPONAME $CIRCLE_BRANCH Berhasil"
+          webhook: $WEBHOOK_SLACK
+
+workflows:
+  version: 2
+  build_and_dockerize:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only: [ main ]
