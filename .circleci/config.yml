@@ -74,7 +74,7 @@ jobs:
             source WEB_IMG_ENV
             gcloud components install kubectl
             if [ "$CIRCLE_BRANCH" == "main" ]; then
-              gcloud container clusters get-credentials gke-Test-cluster --zone asia-southeast1-a --project leftprazz-sgp
+              gcloud container clusters get-credentials gke-test-cluster --zone asia-southeast1-a --project leftprazz-sgp
               kubectl set image deployment/results-app assets=$IMAGE_NAME_RESULTS -n app
               kubectl set image deployment/vote-worker carts=$IMAGE_NAME_VOTE -n app
               kubectl set image deployment/web-vote-app catalog=$IMAGE_NAME_WB -n app
